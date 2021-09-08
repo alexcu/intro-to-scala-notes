@@ -5,7 +5,7 @@ Here are some notes I took during the Scala training.
 - [Some Foundational Concepts](#some-foundational-concepts)
   - [Immutability is King](#immutability-is-king)
   - [Types & Type Signatures](#types--type-signatures)
-- [Intro Exercises 1](#intro-exercises-1)
+- [Introductory Exercises](#introductory-exercises)
   - [Basics](#basics)
   - [Currying](#currying)
   - [Combining Curried Functions](#combining-curried-functions)
@@ -27,6 +27,23 @@ Here are some notes I took during the Scala training.
   - [Exhaustive Pattern Matching](#exhaustive-pattern-matching)
   - [Traits and Case Objects and Pattern Matching](#traits-and-case-objects-and-pattern-matching)
   - [Non-Exhaustive Pattern Matching == No Compile](#non-exhaustive-pattern-matching--no-compile)
+- [List Exercises](#list-exercises)
+  - [List Definition](#list-definition)
+  - [Prepending to a list](#prepending-to-a-list)
+  - [Appending to a list](#appending-to-a-list)
+  - [The `head` and `tail` functions on lists](#the-head-and-tail-functions-on-lists)
+  - [Pattern Matching for Lists](#pattern-matching-for-lists)
+  - [Map](#map)
+  - [Filter](#filter)
+  - [FoldLeft](#foldleft)
+  - [FoldRight](#foldright)
+  - [Bringing List Concepts Together: FoldLeft + Pattern Matching + Case Classses](#bringing-list-concepts-together-foldleft--pattern-matching--case-classses)
+- [Null Exercises](#null-exercises)
+  - [Why Nulls Suck](#why-nulls-suck)
+  - [Introducing `Option`al Types](#introducing-optional-types)
+  - [`parseTrafficLightOrNull` but with `Optional`](#parsetrafficlightornull-but-with-optional)
+  - [Using Pattern Matching and `map` to Safely Unpack Optionals](#using-pattern-matching-and-map-to-safely-unpack-optionals)
+  - [The Map Type](#the-map-type)
 
 ## Some Foundational Concepts
 
@@ -114,7 +131,7 @@ This is a **pure function**, because:
 
 Replacing `Human` with a defined generic type `T` will mean that we have the identify function!
 
-## Intro Exercises 1
+## Introductory Exercises
 
 ### Basics
 
@@ -327,7 +344,14 @@ You can have [up to 22 elements inside tuples](https://www.scala-lang.org/api/2.
 
 ADTs are types which are composed of other types.
 
-Let's visualise this; imagine the primitive types of `int`, `string`, `char`, and so on, as coloured circles.
+Let's visualise this; imagine the primitive types as coloured circles, where:
+
+* :red_circle: = `Int`;
+* :blue_circle: = `String`;
+* :green_circle: = `Char`;
+* :yellow_circle: = `Double`
+
+There are two main ADTs, Product Types (AND) and Sum Types (OR).
 
 * **Product Types (AND)**<br>
   Combine new types using an `and`:
@@ -454,10 +478,11 @@ We can use **named parameters** here, so it ordering does not matter.
 Lets look at this `tellMeAbout` function, which accepts a `Person` type and returns a `String` that describes them:
 
 ```scala
-def tellMeAbout(person: Person): String =
+def tellMeAbout(person: Person): String = {
   person match {
     case Person(name, age) => s"$name is $age years old"
   }
+}
 ```
 
 The pattern matching will match against the `Person` type and unpack their `name` and `age`:
@@ -587,6 +612,7 @@ case object Flashing extends TrafficLight
 // The following cannot compile, as it is not exhaustive!
 trafficLight match {
   case Red => "The traffic light is red"
+
   case Yellow => "The traffic light is yellow"
   case Green => "The traffic light is green"
 }
@@ -598,4 +624,458 @@ trafficLight match {
   case Green => "The traffic light is green"
   case Flashing => "The traffic light is flashing" // <-- Now exhaustive!
 }
+```
+
+## List Exercises
+
+### List Definition
+
+In Scala, lists are:
+
+* immutable
+* linked lists
+* have the same data type
+* is a recursive data structure
+
+Lists in Scala are a Sum type ADT:
+
+```scala
+sealed trait List[+A]
+case class ::[A](head: A, tail: List[A]) extends [A]
+case object Nil extends List[Nothing]
+```
+
+The `::` is the case class, often known as the _cons operator_, which is a product type composed of:
+
+1. the head, of type `A`
+2. a tail, a List of type `A`
+
+The singleton case class object, `Nil`, refers to an empty List. It is generally used to refer to the _sentinel value_ of the list, i.e.:
+
+```scala
+val listWith1: List = 1 :: Nil // <- Nil here will 'terminate' the list
+```
+
+The following lists have all the same values:
+
+```scala
+val list1: List = List(1, 2, 3)
+val list2: List = 1 :: 2 :: 3 :: Nil
+val list3: List = 1 :: (2 :: (3 :: Nil)
+val list4: List = ::(1, ::2, (::3, Nil)))
+```
+
+Note, we defined List with `[+A]`. This refers to Covariance and contravariance. Read more [here](https://blog.knoldus.com/covariance-and-contravariance-in-scala/).
+
+### Prepending to a list
+
+To prepending to a list, we just need to add the new element the `head` of the list, providing the original list into the `tail`:
+
+```scala
+def prependToList[A](x: A, xs: List[A]): List[A] = ::(head=x, tail=xs)
+```
+
+Obviously this syntax is a little nasty, but it is explicit to show what is going on here. We can make it a lot easier by dropping the variable
+
+```scala
+def prependToList[A](x: A, xs: List[A]): List[A] = x :: xs
+```
+
+You can also use the left-applicative `+:` operator:
+
+```scala
+0 +: List(1,2,3) // => List(0,1,2,3)
+```
+
+### Appending to a list
+
+To append to the end of the list, we can use
+
+```scala
+def appendToList[A](x: A, xs: List[A]): List[A] =
+```
+
+You can also use the right-applicative `:+` operator:
+
+```scala
+List(0,1,2) :+ 3 // => List(0,1,2,3)
+```
+
+### The `head` and `tail` functions on lists
+
+Just think of this guy:
+
+![](https://i.imgur.com/zH5nVSP.png)
+
+The `head` of a list is always the first element:
+
+```scala
+List(1,2,3).head // 1
+```
+
+The `tail` of a list is always the whole list without its first element:
+
+```scala
+List(1,2,3).tail // List(2,3)
+```
+
+The `isEmpty` method on a is self-explanatory :wink:
+
+### Pattern Matching for Lists
+
+For implementing a `isEmptyList` function or `showListSize` function, we can use pattern matching against `Nil`:
+
+```scala
+def isEmptyList[A](xs: List[A]): Boolean = {
+  xs match {
+    case Nil => true
+    case _   => false
+  }
+}
+
+def showListSize[A](xs: List[A]): String {
+  xs match {
+    case Nil => 0
+    case _   => xs.length
+  }
+}
+```
+
+If we want to **unpack** the `head` and `tail` in a pattern match, we can again use the `::` operator:
+
+```scala
+xs match {
+  case ::(head, tail) => println(s"My head is $head and my tail is $tail")
+  case Nil            => println("I am empty!")
+}
+```
+
+We can also do the same by using `::` as an operator:
+
+```scala
+xs match {
+  case head :: tail => println(s"My head is $head and my tail is $tail")
+  case Nil          => println("I am empty!")
+}
+```
+
+### Map
+
+A map function applies a function, `f`, to each element of the list, where `f` transforms an element type from type `A` to type `B`:
+
+```scala
+map[B](f: A => B): List[B]
+```
+
+<!-- For example, type `A` could be `UnpeeledBanana` and `map` transforms it to type `B` of `PeeledBanana`:
+
+```scala
+val bananas:  List[PeeledBanana]   = List(b1, b2, b3)
+val unpeeled: List[UnpeeledBanana] = bananas.map(banana => banana.peel()) // creating a new banana copy that is peeled
+```
+
+![](https://i.imgur.com/P0punkF.png) -->
+
+For example, lets say we have a list of grades:
+
+```scala
+val grades: List[Int] = List(90, 70, 88, 89)
+```
+
+A teacher is working out which of the students pass or fail. The pass mark is `75` or more. So, he applied the `didPass` function to the grades, which takes an `Int` and returns an `Boolean`:
+
+```scala
+def didPass(grade: Int): Boolean = grade >= 75
+```
+
+Then he applied a map to the list of grades with the `didPass` function:
+
+```scala
+grades.map(didPass) // List(True, False, True, True)
+```
+
+You can do this with an anonymous function, or lambda, instead of having to define `didPass`:
+
+```scala
+grades.map(grade => grade >= 75)
+```
+
+There is also a shorthand syntactic sugar approach, where you do not have to define `grade` or a function arrow, instead using `_` to reperesent individual elements:
+
+```scala
+grades.map(_ >= 75)
+```
+
+### Filter
+
+A filter function applies a predicate function, `p`, to each element of the list, where `p` is applied to each element of the list `A` and returns a `Boolean` to keep or reject the element:
+
+```scala
+filter(p: A => Boolean): List[A]
+```
+
+For example, instead of using a map with the `didPass` function, the teacher now decides to filter out all grades instead with this function. (He can do this because `didPass` has a type signature `Int => Boolean`.)
+
+```scala
+val grades: List[Int] = List(90, 70, 88, 89)
+val passingGrades : List[Int] = grades.filter(didPass)
+
+passingGrades //= List(90, 88, 89)
+```
+
+And, of course, there's syntactic sugar for `filter`:
+
+```scala
+grades.filter(_ >= 75)
+```
+
+### FoldLeft
+
+Fold left is similar to `reduce` in TypeScript or `inject` in Ruby.
+
+Fold left can be used with a `List` of type `A` (`List[A]`). To start, we provide an **i**nitial value, `i`, of type `B`. The operation function, `op`, is applied to every element in the list, and it has two parameters: the **a**ccumulator, `a` of type `B`, which is applied to the each **el**ement, `el`, of type `A`. The result is a single value of type `B`.
+
+The method signature for fold left is:
+
+```scala
+foldLeft[B](i: B)(op: (acc: B, el: A) => B): B
+```
+
+For example, lets say the teacher wants to find the average grade. To do this, he can use fold left to calculate the total and divide by the number of students:
+
+```scala
+val grades: List[Int] = List(90, 70, 88, 89)
+val total: Int = grades.foldLeft(0.0)((acc: Double, grade: Int) => acc + grade) // = 337.0
+val mean: Double = total / grades.length                                        // = 84.25
+```
+
+Let's hand execute this to break down how `foldLeft` worked for each iteration:
+
+Iteration|Accumulator|Element|Result
+---|---|---|---
+@0|0.0|90|0.0+90=90.0
+@1|90.0|70|90+70=160.0
+@2|160.0|88|160+88=248.0
+@3|248.0|89|248+89=**337.0**
+
+And, of course, there's syntactic sugar for `foldLeft`:
+
+```scala
+val total: Float = grades.foldLeft(0.0)(_ + _)
+```
+
+### FoldRight
+
+Works very similarly to FoldLeft, however it will iterate through the list in reverse:
+
+```scala
+def foldRight[B](i: B)(op: (el: A, acc: B) => B): B
+```
+
+Let's apply FoldRight to a list of characters `A`, `B`, and `C` with an initial value `LETTERS`:
+
+```scala
+val letters: List[Char] = List('A', 'B', 'C')
+val initial: String = "LETTERS"
+
+letters.foldRight("LETTERS")((el: Char, acc: String) => s"$acc $el") // = "LETTERS C B A"
+```
+
+Let's see how this worked:
+
+![](https://i.imgur.com/5DX54Xu.png)
+
+### Bringing List Concepts Together: FoldLeft + Pattern Matching + Case Classses
+
+Lets say we have a list of students with their average grade:
+
+```scala
+case class Student(name: String, averageGrade: Double)
+val students: List[Student] = List(
+  Student("Matt Murdock", 30.0),
+  Student("Karen Page", 27.0),
+  Student("Franklin 'Foggy' Nelson", 31.0),
+  Student("Claire Temple", 32.0),
+  Student("Wilson Fisk", 42.0),
+  Student("Elektra Natchios", 27.0)
+)
+```
+
+We now want to find out which student has the lowest average grade. The teacher wants this to be re-usable, so it needs to handle a case of empty lists too! Let's implement it:
+
+```scala
+def lowestGrade(students: List[Student]): Student = {
+  students match {
+    case head :: tail => tail.foldLeft(head) { (worstStudentSoFar: Student, el: Student) =>
+      if (worstStudentSoFar.averageGrade <= el.averageGrade) worstStudentSoFar else el
+    }
+    case Nil => Student("Nobody", 0.0)
+  }
+}
+```
+
+Let's break this down:
+
+* We pattern match the students to check for an empty (`Nil`) student list.
+* We unpack the `head` and `tail` for non-empty student lists.
+* We apply `foldLeft` on the `tail` of the list, providing the first student (i.e., the `head`) as the initialiser
+* For each element inside the `tail`, we compare whether the accumulator `worstStudentSoFar` (initialised to the first student, i.e., `head`) has a grade lower than the current element, `el`.
+* If they do, we return `worstStudentSoFar`, retaining them as the worst student
+* If they do not, we return `el`, which updates the accumulator `worstStudentSoFar` to `el`.
+
+## Null and `Option` Exercises
+
+> [_To null, or not to null. That is the question._](https://www.infoq.com/presentations/Null-References-The-Billion-Dollar-Mistake-Tony-Hoare/)
+
+### Why Nulls Suck
+
+Null does exist in Scala, as it does in many other langauges. However, we can use the [Wartremover linter](https://www.wartremover.org/) to ensure that there are no nulls at compile time.
+
+Conceptually, null can be good. It means something that does not exist or is invalid. For example, if we want to parse `String`s into `TrafficLight` case classes, we might want to return `null` for invalid strings provided:
+
+```scala
+trait TrafficLight
+case object Red extends TrafficLight
+case object Yellow extends TrafficLight
+case object Green extends TrafficLight
+
+def parseTrafficLightOrNull(str: String): TrafficLight = {
+    str match {
+      case "red" => Red
+      case "yellow" => Yellow
+      case "green" => Green
+      case _ => null
+    }
+}
+```
+
+However, we are still using `null` here. This makes us sad because:
+
+* null is not a type;
+* null breaks referential transparency (i.e., in the `parseTrafficLightOrNull` example, we always want to return a `TrafficLight` type, but sometimes we return `null`, and that ain't documented!);
+* null introduces bugs (e.g., pointer hell and null pointer exceptions).
+
+So what can we do?
+
+### Introducing `Option`al Types
+
+Scala, instead, comes with conceptually similar construct, `Option`, which is not `null`.
+
+Option is a Sum Type ADT which is composed of **either**:
+
+* `Some`<i>thing</i>
+* `None`<i>thing</i>
+
+It is defined as:
+
+```scala
+sealed trait Option[+A]
+case class Some[A](value: A) extends Option[A]
+case object None extends Option[Nothing]
+```
+
+Optionals say either "there is a value, and it equals x" or "there isn’t a value at all". Visually we can represent it like so:
+
+![](https://i.imgur.com/F3wvPV3.png)
+
+This visualisation illustrates the following:
+
+* 42 (on its own) is a non-optional type;
+* the box represents a safe 'wrapper';
+* 42 inside the box indicates an optional with `Some`thing (with a value);
+* the empty box indicates an optional with `None` (with no value)
+
+In code, this looks like:
+
+```scala
+val always42: Int = 42
+
+val maybe42: Option[Int] = Some(42) // or Some(value = 42)
+val maybe42: Option[Int] = None
+```
+
+We also typically prefix `Optional` variables with `maybe`, to reinforce that there _may_ be a value in the variable, or there _may_ not be.
+
+We can use the method `Option.getOrElse` to unwrap the value, or provide an alternative.
+
+### `parseTrafficLightOrNull` but with `Optional`
+
+Let's try and redo the `parseTrafficLightOrNull` returning an `Option[TrafficLight]` type instead. Instead of returning `null` where there is an invalid string provided, we will now provide `None`. This is conceptually similar as the original `parseTrafficLightOrNull` function but without the yuckiness of having `null`s returned:
+
+```scala
+def parseTrafficLight(str: String): Option[TrafficLight] = {
+    str match {
+      case "red"    => Some(Red)
+      case "yellow" => Some(Yellow)
+      case "green"  => Some(Green)
+      case _        => None()
+    }
+}
+
+val maybeRedLight: Optiona[TrafficLight] =   parseTrafficLight("red")    // = Some(Red)
+val maybeYellowLight: Option[TrafficLight] = parseTrafficLight("yellow") // = Some(Yellow)
+val maybePurpleLight: Option[TrafficLight] = parseTrafficLight("purple") // = None
+```
+
+The benefit of using the `Option` here also assists with documenting our code; we don't need to call the function <code>parseTrafficLight<u>OrNull</u></code> because the return type `Option[TrafficLight]` documents that our function may, or may not, return a `TrafficLight`.
+
+### Using Pattern Matching and `map` to Safely Unpack Optionals
+
+It is very common to see the following pattern with Optional types which allows you to safely unpack the optional type and work with the value inside if it exists:
+
+```scala
+val maybe42: Option[Int] = ??? // We don't know if there's a number in here!
+
+maybe42 match {
+  case Some(anInt: Int) => // Do something with `anInt` inside maybe42
+  case None             => // Do something else, as there is no value in maybe42
+}
+```
+
+In cases where we want to _modify the contents_ within an option and also returning an option, we can use pattern matching like so:
+
+```scala
+def intToStr(maybeNumber: Option[Int]): Option[String] = {
+  maybeNumber match {
+    case Some(anInt: Int) => Some(anInt.toString())
+    case None => None
+  }
+}
+
+intToStr(Some(1)) // Some("1")
+intToStr(None)    // None
+```
+
+However it is annoying to match against the default no case, where `case None => None`. Instead, we can `map` over `Option` types which will do the hard work for us:
+
+```scala
+def intToStr(maybeNumber: Option[Int]): Option[String] = maybeNumber.map(_.toString)
+
+intToStr(Some(1)) // Some("1")
+intToStr(None)    // None
+```
+
+### The Map Type
+
+The `Map` **type** (not to be confused with the **`map` function**!) in Scala is similar to a hashmap or dictionary in many languages:
+
+```scala
+val colouredFood: Map[String, String] = Map(
+  "brown" -> "potato",
+  "green" -> "capsicum",
+  "beige" -> "hummus"
+)
+```
+
+Now we can use the `get` method on the map help us **_safely_** access attributes:
+
+```scala
+colouredFood.get("brown")    // Some("potato")
+colouredFood.get("rainbow")  // None
+```
+
+Or, if we don't want to get `None` where a key in the map doesn't exist, we can use `getOrElse`:
+
+```scala
+colouredFood.getOrElse("rainbow", "yasss") // Some("yasss") 🌈
 ```

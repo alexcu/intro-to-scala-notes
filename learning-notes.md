@@ -1,6 +1,6 @@
-# Intro to Scala
+# Intro to Scala: Workshop Notes
 
-Here are some notes I took during the Scala training.
+Notes from Jack Low's amazing [**Intro To Scala**](https://github.com/wjlow/intro-to-scala) Workshop held 8-9 Sep 2021 @ REA Group.
 
 - [Some Foundational Concepts](#some-foundational-concepts)
   - [Immutability is King](#immutability-is-king)
@@ -38,12 +38,26 @@ Here are some notes I took during the Scala training.
   - [FoldLeft](#foldleft)
   - [FoldRight](#foldright)
   - [Bringing List Concepts Together: FoldLeft + Pattern Matching + Case Classses](#bringing-list-concepts-together-foldleft--pattern-matching--case-classses)
-- [Null Exercises](#null-exercises)
+- [Null and `Option` Exercises](#null-and-option-exercises)
   - [Why Nulls Suck](#why-nulls-suck)
   - [Introducing `Option`al Types](#introducing-optional-types)
   - [`parseTrafficLightOrNull` but with `Optional`](#parsetrafficlightornull-but-with-optional)
   - [Using Pattern Matching and `map` to Safely Unpack Optionals](#using-pattern-matching-and-map-to-safely-unpack-optionals)
   - [The Map Type](#the-map-type)
+  - [Mapping `Option`al values with `Option.map`](#mapping-optional-values-with-optionmap)
+  - [`Either` is like `Option`++](#either-is-like-option)
+  - [Happy = `Right`; Unhappy = `Left`](#happy--right-unhappy--left)
+  - [Chaining with `for` and `yield`](#chaining-with-for-and-yield)
+  - [Map vs For-comprehension syntax](#map-vs-for-comprehension-syntax)
+- [Exceptions](#exceptions)
+  - [Why Exceptions Suck](#why-exceptions-suck)
+  - [Exceptions in Scala](#exceptions-in-scala)
+  - [Refactoring Exceptions as ADTs](#refactoring-exceptions-as-adts)
+  - [Map & Flat Map vs. For-Yield Comprehension](#map--flat-map-vs-for-yield-comprehension)
+  - [Hand Executing Map & Flat Map and For-Yield Comprehension](#hand-executing-map--flat-map-and-for-yield-comprehension)
+  - [Collect](#collect)
+- [`Try` Exercises](#try-exercises)
+  - [Try Concepts](#try-concepts)
 
 ## Some Foundational Concepts
 
@@ -947,6 +961,9 @@ def parseTrafficLightOrNull(str: String): TrafficLight = {
       case _ => null
     }
 }
+
+parseTrafficLightOrNull("red") // Red
+parseTrafficLightOrNull("banana") // null
 ```
 
 However, we are still using `null` here. This makes us sad because:
@@ -998,7 +1015,7 @@ We also typically prefix `Optional` variables with `maybe`, to reinforce that th
 
 We can use the method `Option.getOrElse` to unwrap the value, or provide an alternative.
 
-#### Type Gymnastics
+#### What is `Nothing`?
 
 We see that there's `Nothing` in the definition of `Option`. This is because `Nothing` extends from _everything_; it is in the bottom of the Scala's unified type hierarchy:
 
@@ -1014,7 +1031,7 @@ def parseTrafficLight(str: String): Option[TrafficLight] = {
       case "red"    => Some(Red)
       case "yellow" => Some(Yellow)
       case "green"  => Some(Green)
-      case _        => None()
+      case _        => None
     }
 }
 
@@ -1142,19 +1159,14 @@ config.get("bort")  // None
 `Either`s takes `Option` to the next step. It is defined as:
 
 ```scala
-trait Option[A]     // Always an Optional type A
-trait Either[A, B]  // Either a type A or a type B
+trait Option[A]     // Option is always of one type, A - Some(A) or None
+trait Either[A, B]  // Either is of either type A or B - Left(A) or Right(B)
+
+case class Left[A, B](value: A) extends Either[Nothing, B]  // value wrapped is type A
+case class Right[A, B](value: B) extends Either[A, Nothing] // value wrapped is type B
 ```
 
 where `A` is the type of the **unhappy path** (the type we default to when we don't get what we want), and `B` is the type of the **happy path** (the type we get when things are okay).
-
-It is defined as:
-
-```scala
-trait Either[A, B]
-case class Left[A, B](value: A) extends Either[A, B]  // value wrapped is type A
-case class Right[A, B](value: B) extends Either[A, B] // value wrapped is type B
-```
 
 Key take away here is that **`Either` is an _alternative_ to `Option`**, where:
 
@@ -1212,10 +1224,9 @@ getUser(2178).map(_.age) match {
 }
 ```
 
+### Chaining with `for` and `yield`
 
-### Chaining with `for` and `yield` pattern
-
-We can chain `Either` with a `for`/`yield` pattern. This pattern is useful since it can check to make sure we go onto the happy or unhappy path. For example, in the below, we call `getUser` with two user IDs. If any `getUser` falls into the happy path, we return a `String`; if any `getUser` falls into the unhappy path, we return a `Error` (which is just a type alias to `String`, just to make things a little clearer!):
+We can chain `Either` with a `for`/`yield` pattern (or for-comprehension syntax). This pattern is useful since it can check to make sure we go onto the happy or unhappy path. For example, in the below, we call `getUser` with two user IDs. If any `getUser` falls into the happy path, we return a `String`; if any `getUser` falls into the unhappy path, we return a `Error` (which is just a type alias to `String`, just to make things a little clearer!):
 
 ```scala
 // Type alias to make it clearer that we have two types here
@@ -1235,8 +1246,532 @@ def getTwoUsers(db: Map[Int, User], uid1: Int, uid2: Int): Either[Error, String]
   }
 }
 
-getTwoUsers(userDb, -2, -1)   // Left("Unhappy path: Invalid user ID -1")       NB: Type of Left is Error
 getTwoUsers(userDb, 2178, -1)   // Left("Unhappy path: Invalid user ID -1")       NB: Type of Left is Error
 getTwoUsers(userDb, 2178, 1000) // Left("Unhappy path: User ID 1000 not found")   NB: Type of Left is Error
 getTwoUsers(userDb, 2178, 2179) // Right("Happy path: Alex is 27 and Jake is 26") NB: Type of Right is String
 ```
+
+### Map vs For-comprehension syntax
+
+We can re-do a map on a data with a for-comprehension syntax.
+
+Let's say we write a year born function:
+
+```scala
+def getYearBornByUserId(db: Map[Int, User], uid: Int): Option[Int] = {
+  val maybeYear: Either[String, Int] = getUser(db, uid).map(user => 2021 - user.age)
+
+  maybeYear match  {
+    case Right(year) => Some(year)
+    case Left(error) => None
+  }
+}
+
+getYearBornByUserId(userDb, -1)   // None
+getYearBornByUserId(userDb, 1000) // None
+getYearBornByUserId(userDb, 2178) // Some(1994)
+```
+
+We can _de-sugar_ the `map` into a `for`/`yield` comprehension:
+
+```scala
+def getYearBornByUserId(db: Map[Int, User], uid: Int): Option[Int] = {
+  val maybeYear: Either[String, Int] = {
+    for {
+      user <- getUser(db, uid)
+      age = user.age
+    } yield 2021 - age
+  }
+
+  maybeYear match  {
+    case Right(year) => Some(year)
+    case Left(error) => None
+  }
+}
+
+getYearBornByUserId(userDb, -1)   // None
+getYearBornByUserId(userDb, 1000) // None
+getYearBornByUserId(userDb, 2178) // Some(1994)
+```
+
+Let's break this down. In the for-comprehension, we:
+
+* we extract a `user` from the `getUser` function by `map`;
+* we assign a variable `age` to the extracted `user`'s `age;
+* finally we year `2021 - age`.
+
+## Exceptions
+
+### Why Exceptions Suck
+
+Exceptions allow your programs to lie, e.g.:
+
+```scala
+def toInt(str: String): Int = str.toInt
+
+toInt("123")    // 123
+toInt("banana") // java.lang.NumberFormatException: For input string: "banana"
+```
+
+Here, our `toInt` function promised to return an `Int` as per its type signature, however now we have raised an exception, which is not an `Int`!
+
+Exceptions also break program flow, e.g.:
+
+```scala
+val n: Int = toInt(myStr)
+val pow2: Int = n * 2
+```
+
+Here, we aren't guaranteed for `pow2` to ever be assigned, since `toInt` will throw an exception if it cannot convert properly.
+
+### Exceptions in Scala
+
+This said, exceptions _still_ exist in Scala as a type alias to `java.lang.Exception`:
+
+```scala
+type Exception = java.lang.Exception
+```
+
+We can define our own exceptions like so:
+
+```scala
+class EmptyNameException(message: String) extends Exception(message)
+class InvalidUserException(message: String) extends Exception(message)
+class InvalidAgeValueException(message: String) extends Exception(message)
+```
+
+and raise them using the `throw` keyword:
+
+```scala
+if (age < 0) {
+  throw new InvalidAgeValueException(s"An age of $age is not valid")
+}
+```
+
+Let's say we want to confirm that the provided `User`'s name is valid in a new `getName` function:
+
+```scala
+val userDb: Map[Int, User] = Map(
+  2178 -> User(name = "Alex", age = 27),
+  2179 -> User(name = "Jake", age = 26),
+  2000 -> User(name = "", age = 1000)
+)
+
+def getNameByUserId(db: Map[Int, User], uid: Int): String = {
+  val maybeUser: Either[String, User] = getUser(db, uid)
+
+  maybeUser match  {
+    case Right(user) => {
+      if (user.name.isBlank) {
+        throw new EmptyNameException(s"The user with ID $uid has an empty name")
+      } else {
+        user.name
+      }
+    }
+    case Left(error) => throw new InvalidUserException(s"The user with ID $uid was invalid or does not exist")
+  }
+}
+
+getNameByUserId(userDb, -1)   // InvalidUserException: The user with ID -1 was invalid or does not exist
+getNameByUserId(userDb, 1000) // InvalidUserException: The user with ID 1000 was invalid or does not exist
+getNameByUserId(userDb, 2000) // EmptyNameException: The user with ID 2000 has an empty name
+getNameByUserId(userDb, 2178) // "Alex"
+getNameByUserId(userDb, 2179) // "Jake"
+```
+
+### Refactoring Exceptions as ADTs
+
+The above is yucky since it is combining _both_ exceptions and `Either`s together. Instead, let's refactor this to use sum ADTs to represent out exceptions and then use just `Either`:
+
+```scala
+sealed trait AppError
+case object EmptyName extends AppError
+case object InvalidUser extends AppError
+```
+
+Now, we can change our `getNameByUserId` type signature to clearly represent that this function may return an `AppError` (on the unhappy path where the name is invalid or empty) or a `String` (on the happy path, i.e., the user's name):
+
+```scala
+def getNameByUserId(db: Map[Int, User], uid: Int): Either[AppError, String] = {
+  val maybeUser: Either[String, User] = getUser(db, uid)
+
+  maybeUser match  {
+    case Right(user) => {
+      user.name.isEmpty match {
+        case false => Right(user.name)
+        case true => Left(EmptyName)
+      }
+    }
+    case Left(error) => Left(InvalidUser)
+  }
+}
+
+getNameByUserId(userDb, -1)   // Left(InvalidUser)
+getNameByUserId(userDb, 1000) // Left(InvalidUser)
+getNameByUserId(userDb, 2000) // Left(EmptyName)
+getNameByUserId(userDb, 2178) // Right("Alex")
+getNameByUserId(userDb, 2179) // Right("Jake")
+```
+
+### Map & Flat Map vs. For-Yield Comprehension
+
+Let's say we now have the following functions, `getName` and `getAge`, where:
+
+* a name is only valid if it is non-empty
+* an age is only valid if it is in the range $[1, 120]$
+
+Invalid ages and names will return an `AppError` of their respective concrete types:
+
+```scala
+sealed trait AppError
+case object EmptyName extends AppError
+case class InvalidAgeValue(value: String) extends AppError
+case class InvalidAgeRange(age: Int) extends AppError
+
+def getName(providedName: String): Either[AppError, String] = {
+  providedName.isEmpty match {
+    case true => Left(EmptyName)      // Name was empty as isEmpty was true;
+                                      // so return unhappy path (Left) with AppError of EmptyName
+
+    case false => Right(providedName) // Name is not empty as isEmpty is false;
+                                      // so return happy path (Right) with providedName
+  }
+}
+
+def getAge(providedAge: String): Either[AppError, Int] = {
+  val maybeInt: Option[Int] = providedAge.toIntOption   // Convert the providedAge to an Option[Int]
+  maybeInt match {
+    case None => Left(InvalidAgeValue(providedAge))     // Where the convert fails, i.e., None, return the unhappy
+                                                        // path (Left) with an AppError of InvalidAgeValue
+
+    case Some(value) => {                               // Where the convert passes, i.e., Some(value), then...
+      if (value >= 1 && value <= 120) {                 // ...if we have an appropriate age
+        Right(value)                                    //    then return the happy path (Right) with the age
+      } else {                                          // ...else if we do not have an appropriate age
+        Left(InvalidAgeRange(value))                    //    then return the unhappy path (Left) with the wrong age
+      }
+    }
+  }
+}
+```
+
+Now we can apply `map` and `flatMap` to create any person, returning `Either` an `AppError` when we're in the unhappy path, or the created `Person` when we are on the happy path:
+
+```scala
+def createPerson(name: String, age: String): Either[AppError, Person] = {
+  getAge(age)
+    .flatMap(age => {
+      getName(name)
+        .map(name => Person(name, age))
+    })
+}
+```
+
+### Hand Executing Map & Flat Map and For-Yield Comprehension
+
+The chaining above looks confusing. So, we can break the above down into some variables to help follow along:
+
+```scala
+def createPerson(name: String, age: String): Either[AppError, Person] = {     // Step 0.
+  val ageEither: Either[AppError, Int] = getAge(age)                          // Step 1.
+  val ageNameEither: Either[AppError, Person] = ageEither.flatMap(anAge => {  // Step 2.
+    val nameEither: Either[AppError, String] = getName(name)                  // Step 3.
+    nameEither.map(aName => {                                                 // Step 4.
+      Person(name = aName, age = anAge)                                       // Step 5.
+    })
+  })
+  ageNameEither                                                               // Step 6.
+}
+```
+
+Below hand executes each step for the happy and sad paths.
+
+<details>
+<summary><b>Happy Path: a valid name and age</b></summary>
+
+0. ```scala
+   name: String = "Alex"
+   age:  String = "27"
+   ```
+1. ```scala
+   name:      String                = "Alex"
+   age:       String                = "27"
+   ageEither: Either[AppError, Int] = Right(27)
+   ```
+2. ```scala
+   name:      String                = "Alex"
+   age:       String                = "27"
+   ageEither: Either[AppError, Int] = Right(27)
+   anAge:     Int                   = 27
+   ```
+3. ```scala
+   name:       String                   = "Alex"
+   age:        String                   = "27"
+   ageEither:  Either[AppError, Int]    = Right(27)
+   anAge:      Int                      = 27
+   nameEither: Either[AppError, String] = Right("Alex")
+   ```
+4. ```scala
+   name:       String                   = "Alex"
+   age:        String                   = "27"
+   ageEither:  Either[AppError, Int]    = Right(27)
+   anAge:      Int                      = 27
+   nameEither: Either[AppError, String] = Right("Alex")
+   aName:      String                   = "Alex"
+   ```
+5. ```scala
+   name:                       String                   = "Alex"
+   age:                        String                   = "27"
+   ageEither:                  Either[AppError, Int]    = Right(27)
+   anAge:                      Int                      = 27
+   nameEither:                 Either[AppError, String] = Right("Alex")
+   aName:                      String                   = "Alex"
+   /*result(nameEither.map)*/: Person                   = Person(name="Alex", age=27)
+   ```
+6. ```scala
+   name:          String                   = "Alex"
+   age:           String                   = "27"
+   ageEither:     Either[AppError, Int]    = Right(27)
+   ageNameEither: Either[AppError, Person] = Right(Person(name="Alex", age=27))
+   ```
+</details>
+
+<details>
+<summary><b>Unhappy Path 1: a valid name and <u>invalid</u> age</b></summary>
+
+0. ```scala
+   name: String = "Alex"
+   age:  String = "1000"
+   ```
+1. ```scala
+   name:      String                = "Alex"
+   age:       String                = "1000"
+   ageEither: Either[AppError, Int] = Left(InvalidAgeRange(1000))
+   ```
+2. Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+3. Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+4. Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+5. Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+6. ```scala
+   name:          String                   = "Alex"
+   age:           String                   = "27"
+   ageEither:     Either[AppError, Int]    = Left(InvalidAgeRange(1000))
+   ageNameEither: Either[AppError, Person] = Left(InvalidAgeRange(1000))
+   ```
+</details>
+
+<details>
+<summary><b>Unhappy Path 2: an <u>invalid</u> name and valid age</b></summary>
+
+0. ```scala
+   name: String = ""
+   age:  String = "27"
+   ```
+1. ```scala
+   name:      String                = ""
+   age:       String                = "27"
+   ageEither: Either[AppError, Int] = Right(27)
+   ```
+2. ```scala
+   name:      String                = ""
+   age:       String                = "27"
+   ageEither: Either[AppError, Int] = Right(27)
+   anAge:     Int                   = 27
+   ```
+3. ```scala
+   name:      String                    = ""
+   age:       String                    = "27"
+   ageEither: Either[AppError, Int]     = Right(27)
+   anAge:     Int                       = 27
+   nameEither: Either[AppError, String] = Left(EmptyName)
+   ```
+4. Skipped as `nameEither` is a `Left` wrapping an `AppError` of `EmptyName`
+5. Skipped as `nameEither` is a `Left` wrapping an `AppError` of `EmptyName`
+6. ```scala
+   name:          String                   = "Alex"
+   age:           String                   = "27"
+   ageEither:     Either[AppError, Int]    = Right(27)
+   ageNameEither: Either[AppError, Person] = Left(EmptyName)
+   ```
+</details>
+
+
+Alternatively, we can represent the `map`/`flatMap` as a `for`/`yield` comprehension, reducing chaining and improving readability:
+
+```scala
+def createPerson(name: String, age: String): Either[AppError, Person] = { // Step 0.
+  for {
+    anAge: Int    <- getAge(age)                                          // Step 1.
+    aName: String <- getName(name)                                        // Step 2.
+  } yield Person(name = aName, age = anAge)                               // Step 3.
+}
+```
+
+Below hand executes each step for the happy and sad paths.
+
+<details>
+<summary><b>Happy Path: a valid name and age</b></summary>
+
+0. ```scala
+   name: String = "Alex"
+   age:  String = "27"
+   ```
+1. ```scala
+   name:               String                = "Alex"
+   age:                String                = "27"
+   /*result(getAge)*/: Either[AppError, Int] = Right(27)
+   anAge:              Int                   = 27
+   ```
+2. ```scala
+   name:                String                   = "Alex"
+   age:                 String                   = "27"
+   anAge:               Int                      = 27
+   /*result(getName)*/: Either[AppError, String] = Right("Alex")
+   aName:               String                   = "Alex"
+   ```
+3. ```scala
+   name:              String                   = "Alex"
+   age:               String                   = "27"
+   anAge:             Int                      = 27
+   aName:             String                   = "Alex"
+   /*result(yield)*/: Either[AppError, String] = Right(Person(name="Alex", age=27))
+   ```
+</details>
+
+<details>
+<summary><b>Unhappy Path 1: a valid name and <u>invalid</u> age</b></summary>
+
+0. ```scala
+   name: String = "Alex"
+   age:  String = "1000"
+   ```
+1. ```scala
+   name:               String                = "Alex"
+   age:                String                = "1000"
+   /*result(getAge)*/: Either[AppError, Int] = Left(InvalidAgeRange(1000))
+   ```
+2. Skipped as the result of `getAge` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+3. ```scala
+   name:              String                   = "Alex"
+   age:               String                   = "27"
+   /*result(yield)*/: Either[AppError, String] = Left(InvalidAgeRange(1000))
+   ```
+</details>
+
+<details>
+<summary><b>Unhappy Path 2: an <u>invalid</u> name and valid age</b></summary>
+
+0. ```scala
+   name: String = ""
+   age:  String = "27"
+   ```
+1. ```scala
+   name:               String                = "Alex"
+   age:                String                = "27"
+   /*result(getAge)*/: Either[AppError, Int] = Right(27)
+   anAge:              Int                   = 27
+   ```
+2. ```scala
+   name:                String                   = "Alex"
+   age:                 String                   = "27"
+   anAge:               Int                      = 27
+   /*result(getName)*/: Either[AppError, String] = Left(EmptyName)
+   ```
+   :warning: Note here that `aName` won't get assigned as the result of `getName` is a `Left` wrapping an `AppError` of `EmptyName`
+3. ```scala
+   name:              String                   = "Alex"
+   age:               String                   = "27"
+   /*result(yield)*/: Either[AppError, String] = Left(EmptyName)
+   ```
+</details>
+
+### Pattern Matching for Error Handling
+
+Here, we can pattern match on _concrete types_ of `AppError` and handle each error differently, e.g. below:
+
+```scala
+def createPersonAndShow(name: String, age: String): String = {
+  val maybePerson: Either[AppError, Person] = createPerson(name, age)
+  maybePerson match {
+    case Left(EmptyName) => "Empty name supplied"
+    case Left(InvalidAgeValue(age: Int)) => s"Invalid age value supplied: $age"
+    case Left(InvalidAgeRange(age: Int)) => s"Provided age must be between 1-120: $age"
+    case Right(p: Person) => s"${p.name} is ${p.age}"
+  }
+}
+```
+
+Therefore we can construct a pattern match to handle distinct error types.
+
+### Collect
+
+We can use a `List`'s `collect` method to discriminate against a list of `Either`s and selects only the `Right`s (valid values) or the `Left`s (invalid values):
+
+```scala
+val personStringPairs: List[(String, String)] = List(
+  ("Tokyo", "30"),
+  ("Moscow", "5o"),
+  ("The Professor", "200"),
+  ("Berlin", "43"),
+  ("Arturo Roman", "0"),
+  ("", "30")
+)
+
+personStringPairs.map { case (name: String, age: String)) => createPerson(name, age) }
+                 .collect { case Right(person) => person }
+
+
+personStringPairs.map(pair => createPerson(name = pair._1, age = pair._2)).collect {
+  case Right(person) => person
+}
+```
+
+## `Try` Exercises
+
+### Try Concepts
+
+Try is another sum-type ADT which represents either a success or failure with an exception. It's similar to, but semantically different, from `Either` in that instances of `Try` are either `Success` or `Failure`, however `Failure` can only have a `Throwable` member named `exception`:
+
+```scala
+trait Try[A]
+case class Success[A](value: A) extends Try[A]
+case class Failure[A](exception: Throwable) extends Try[A]
+```
+
+**Note that `Try`, `Success` and `Failure` need to be specifically imported:**
+
+```scala
+import scala.util.{Try, Success, Failure}
+```
+
+We can use `Try` to specifically handle exceptions that may be thrown in functions. For example, if we wrap the `str.toInt` function (which can throw a `java.lang.NumberFormatException` for bad input) in a `Try`, we can handle exceptions safely from Java-based libraries:
+
+```scala
+def toInt(str: String): Try[Int] = {
+  Try(str.toInt)
+}
+
+toInt("123")    // Success(value = 123)
+toInt("banana") // Failure(exception = java.lang.NumberFormatException: For input string: "banana")
+```
+
+We can also pattern match against `Try`s as they're ADTs. For example, squaring the result from our `Int`s above, returning `None` if the `Try` is a `Failure`, or `Some` with the value holding the `Success`fully parsed `str` squared.
+
+```scala
+def pow2(str: String): Option[Int] = {
+  val tryStrToInt: Try[Int] = toInt(str)
+  tryStrToInt match {
+    case Success(anInt) => Some(anInt * anInt)
+    case Failure(exception) => None
+  }
+}
+
+pow2("2")       // Some(4)
+pow2("banana")  // None
+```
+
+<br>
+<br>
+<br>
+
+> _Fin._

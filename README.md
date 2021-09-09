@@ -1545,7 +1545,7 @@ ageEither:                  Either[AppError, Int]    = Right(27)
 anAge:                      Int                      = 27
 nameEither:                 Either[AppError, String] = Right("Alex")
 aName:                      String                   = "Alex"
-/*result(nameEither.map)*/: Person                   = Person(name="Alex", age=27)
+/*result(nameEither.map)*/: Either[AppError, Person] = Right(Person(name="Alex", age=27))
 ```
 
 **Step 6**
@@ -1708,7 +1708,7 @@ name:              String                   = "Alex"
 age:               String                   = "27"
 anAge:             Int                      = 27
 aName:             String                   = "Alex"
-/*result(yield)*/: Either[AppError, String] = Right(Person(name="Alex", age=27))
+/*result(yield)*/: Either[AppError, Person] = Right(Person(name="Alex", age=27))
 ```
 </details>
 
@@ -1739,7 +1739,7 @@ Skipped as the result of `getAge` is a `Left` wrapping an `AppError` of `Invalid
 ```scala
 name:              String                   = "Alex"
 age:               String                   = "27"
-/*result(yield)*/: Either[AppError, String] = Left(InvalidAgeRange(1000))
+/*result(yield)*/: Either[AppError, Person] = Left(InvalidAgeRange(1000))
 ```
 </details>
 
@@ -1777,7 +1777,7 @@ anAge:               Int                      = 27
 ```scala
 name:              String                   = "Alex"
 age:               String                   = "27"
-/*result(yield)*/: Either[AppError, String] = Left(EmptyName)
+/*result(yield)*/: Either[AppError, Person] = Left(EmptyName)
 ```
 </details>
 

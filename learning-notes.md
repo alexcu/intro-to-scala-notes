@@ -407,7 +407,7 @@ val c3 = Note("C", "Quarter", 3)
 
 ### Sum Types in Scala use `trait`s
 
-Example of a **sum type** in Scala use **`trait`**s. These traits can then be used by `case class`es or `case object`s to **`extend`** these classes or objects, thereby linking them as an _or_.
+Example of a **sum type** in Scala use **`trait`**s. protocols in ObjC/Swift. You can't instansiate them, but they can be used by `case class`es or `case object`s to **`extend`** the trait, thereby linking the case classes with as an _or_.
 
 For example, `place`, `move` or `rotate`, which all extend `Command`:
 
@@ -969,7 +969,7 @@ Option is a Sum Type ADT which is composed of **either**:
 It is defined as:
 
 ```scala
-sealed trait Option[+A]
+trait Option[A]
 case class Some[A](value: A) extends Option[A]
 case object None extends Option[Nothing]
 ```
@@ -997,6 +997,12 @@ val maybe42: Option[Int] = None
 We also typically prefix `Optional` variables with `maybe`, to reinforce that there _may_ be a value in the variable, or there _may_ not be.
 
 We can use the method `Option.getOrElse` to unwrap the value, or provide an alternative.
+
+#### Type Gymnastics
+
+We see that there's `Nothing` in the definition of `Option`. This is because `Nothing` extends from _everything_; it is in the bottom of the Scala's unified type hierarchy:
+
+![](https://docs.scala-lang.org/resources/images/tour/unified-types-diagram.svg)
 
 ### `parseTrafficLightOrNull` but with `Optional`
 
@@ -1057,7 +1063,15 @@ intToStr(None)    // None
 
 ### The Map Type
 
-The `Map` **type** (not to be confused with the **`map` function**!) in Scala is similar to a hashmap or dictionary in many languages:
+The `Map` **type** (not to be confused with the **`map` function**!) in Scala is similar to a hashmap or dictionary in many languages, where there are key-value pairs. It is defined as:
+
+```scala
+Map[A,B]
+```
+
+Where type `A` is the key and type `B` is the value.
+
+For example, a Map of String and String:
 
 ```scala
 val colouredFood: Map[String, String] = Map(
@@ -1070,12 +1084,159 @@ val colouredFood: Map[String, String] = Map(
 Now we can use the `get` method on the map help us **_safely_** access attributes:
 
 ```scala
-colouredFood.get("brown")    // Some("potato")
-colouredFood.get("rainbow")  // None
+val maybeBrown: Option[String]= colouredFood.get("brown")    // Some("potato")
+val maybeRainbow: Option[String] = colouredFood.get("rainbow")  // None
+```
+
+The definition of the `get` method returns an `Option` of type `B`:
+
+```scala
+Map[A,B].get(get:A): Option[B]
 ```
 
 Or, if we don't want to get `None` where a key in the map doesn't exist, we can use `getOrElse`:
 
 ```scala
-colouredFood.getOrElse("rainbow", "yasss") // Some("yasss") 🌈
+val alwaysSomething: Some[String] = colouredFood.getOrElse("rainbow", "yasss") // Some("yasss") 🌈
+```
+
+### Mapping `Option`al values with `Option.map`
+
+As we saw above, you can map over Option values safely using the `.map` method:
+
+```scala
+Option[A].map(f: A => B): Option[B]
+```
+
+We can map the Option from type `A` to type `B`, or the type can even be the same. This enables us to safely do things with `Option` values:
+
+```scala
+def sayHelloWorld(myStr: Option[String]): Option[String] = {
+  myStr.map(_ + " world")
+}
+
+sayHelloWorld(Some("Hello")) // Some("Hello World")
+sayHelloWorld(None)          // None
+```
+
+We can also use it to chain things:
+
+```scala
+val config: Map[String, String] = Map(
+  "port" -> "8080"
+)
+
+config.get("port")  // Some("8080")
+  .map(_.toInt)     // Some(8080)
+  .map(_ + 1000)    // Some(9080)
+  .getOrElse(55)    // Some(9080)
+
+config.get("bort")  // None
+  .map(_.toInt)     // None
+  .map(_ + 1000)    // None
+  .getOrElse(55)    // Some(55)
+```
+
+### `Either` is like `Option`++
+
+`Either`s takes `Option` to the next step. It is defined as:
+
+```scala
+trait Option[A]     // Always an Optional type A
+trait Either[A, B]  // Either a type A or a type B
+```
+
+where `A` is the type of the **unhappy path** (the type we default to when we don't get what we want), and `B` is the type of the **happy path** (the type we get when things are okay).
+
+It is defined as:
+
+```scala
+trait Either[A, B]
+case class Left[A, B](value: A) extends Either[A, B]  // value wrapped is type A
+case class Right[A, B](value: B) extends Either[A, B] // value wrapped is type B
+```
+
+Key take away here is that **`Either` is an _alternative_ to `Option`**, where:
+
+* `Left` takes the place of `None` (the unhappy path), and
+* `Right` takes the place of `Some` (the happy path).
+
+So, we can think of `Right` as "this is the _right_ way to go!" :smile:
+
+### Happy = `Right`; Unhappy = `Left`
+
+Here is a concrete example; here is database of `User` case classes, which is just a `Map` of `User` against their `Int` user IDs:
+
+```scala
+case class User(name: String, age: Int)
+val userDb: Map[Int, User] = Map(
+  2178 -> User(name = "Alex", age = 27),
+  2179 -> User(name = "Jake", age = 26)
+)
+```
+
+Now we will write a `getUser` example, which will lookup against this userDb, returning a `String` (such as an error message) on the **unhappy** path, or the `User` found on the **happy** path.
+
+```scala
+def getUser(db: Map[Int, User], uid: Int): Either[String, User] = {
+  if (uid < 0) {
+    Left(s"Invalid ID $uid")
+  } else {
+    val maybeUser: Option[User] = db.get(uid)
+    maybeUser match {
+      case Some(user) => Right(user)
+      case None => Left(s"User ID $uid not found")
+    }
+  }
+}
+
+getUser(userDb, -1)   // Left("Invalid ID -1")
+getUser(userDb, 1000) // Left("User ID 1000 not found")
+getUser(userDb, 2178) // Right(User(Alex, 27))
+getUser(userDb, 2179) // Right(User(Jake, 26))
+```
+
+Let's break this down:
+
+* If the ID is invalid (i.e., less than 0), we will return an unhappy path (i.e., a `Left`) with the message "Invalid ID"
+* If the ID is valid, we will look it up in our `db` map, get it and store it in an `Option[User]` called `maybeUser`.
+* If the user was found (i.e., `maybeUser` matches against the `Some` type) then we extract the `user` and wrap it inside a `Right`, indicating the happy path.
+* If the user wasn't found (i.e., `maybeUser` matches against the `None` type) then we return a string "User ID not found" (i.e., as a `Left`) indicating the unhappy path.
+
+When we combine this with the `map` method, we will always go over our happy path, and pattern match against `Left` and `Right`:
+
+```scala
+getUser(2178).map(_.age) match {
+  case Right(age) => println(s"The user's age is $age")
+  case Left(error) => println(s"We got an error! It is $error")
+}
+```
+
+
+### Chaining with `for` and `yield` pattern
+
+We can chain `Either` with a `for`/`yield` pattern. This pattern is useful since it can check to make sure we go onto the happy or unhappy path. For example, in the below, we call `getUser` with two user IDs. If any `getUser` falls into the happy path, we return a `String`; if any `getUser` falls into the unhappy path, we return a `Error` (which is just a type alias to `String`, just to make things a little clearer!):
+
+```scala
+// Type alias to make it clearer that we have two types here
+type Error = String
+
+def getTwoUsers(db: Map[Int, User], uid1: Int, uid2: Int): Either[Error, String] = {
+  val maybeAges: Either[String, String] = {
+    for {
+      user1 <- getUser(db, uid1)
+      user2 <- getUser(db, uid2)
+    } yield s"${user1.name} is ${user1.age} and ${user2.name} is ${user2.age}"
+  }
+
+  maybeAges match {
+    case Right(result) => Right(s"Happy path: $result")
+    case Left(errmsg) => Left(s"Unhappy path: $errmsg")
+  }
+}
+
+getTwoUsers(userDb, -2, -1)   // Left("Unhappy path: Invalid user ID -1")       NB: Type of Left is Error
+getTwoUsers(userDb, 2178, -1)   // Left("Unhappy path: Invalid user ID -1")       NB: Type of Left is Error
+getTwoUsers(userDb, 2178, 1000) // Left("Unhappy path: User ID 1000 not found")   NB: Type of Left is Error
+getTwoUsers(userDb, 2178, 2179) // Right("Happy path: Alex is 27 and Jake is 26") NB: Type of Right is String
 ```

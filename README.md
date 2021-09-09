@@ -1,6 +1,8 @@
 # Intro to Scala: Workshop Notes
 
-Notes from Jack Low's amazing [**Intro To Scala**](https://github.com/wjlow/intro-to-scala) Workshop held 8-9 Sep 2021 @ REA Group.
+My notes from Jack Low's amazing [**Intro To Scala**](https://github.com/wjlow/intro-to-scala) Workshop, held 8-9 Sep 2021 @ REA Group.
+
+## Table of Contents
 
 - [Some Foundational Concepts](#some-foundational-concepts)
   - [Immutability is King](#immutability-is-king)
@@ -361,7 +363,7 @@ ADTs are types which are composed of other types.
 Let's visualise this; imagine the primitive types as coloured circles, where:
 
 * :red_circle: = `Int`;
-* :blue_circle: = `String`;
+* :large_blue_circle: = `String`;
 * :green_circle: = `Char`;
 * :yellow_circle: = `Double`
 
@@ -421,7 +423,7 @@ val c3 = Note("C", "Quarter", 3)
 
 ### Sum Types in Scala use `trait`s
 
-Example of a **sum type** in Scala use **`trait`**s. protocols in ObjC/Swift. You can't instansiate them, but they can be used by `case class`es or `case object`s to **`extend`** the trait, thereby linking the case classes with as an _or_.
+Example of a **sum type** in Scala use a **`trait`**. protocols in ObjC/Swift. You can't instansiate them, but they can be used by a `case class` or a `case object` to **`extend`** the trait, thereby linking the case classes with as an _or_.
 
 For example, `place`, `move` or `rotate`, which all extend `Command`:
 
@@ -589,7 +591,7 @@ We can also using a pipe as an `or` for each of the three colours too!
 
 ### Traits and Case Objects and Pattern Matching
 
-Remember, a **`trait`** is an Sum Type ADT. We can **`sealed`** the trait, meaning it can only be extended in the same file that it is defined. We can also have **`case object`**s to `extend` the trait we define, making them _singletons_ of those traits.
+Remember, a **`trait`** is an Sum Type ADT. We can **`sealed`** the trait, meaning it can only be extended in the same file that it is defined. We can also have a **`case object`** to `extend` the trait we define, making them _singletons_ of those traits.
 
 In the traffic light analogy, we could, instead of using strings, replace our `String`s above into actual `TrafficLight` types.
 
@@ -1489,110 +1491,171 @@ Below hand executes each step for the happy and sad paths.
 <details>
 <summary><b>Happy Path: a valid name and age</b></summary>
 
-0. ```scala
-   name: String = "Alex"
-   age:  String = "27"
-   ```
-1. ```scala
-   name:      String                = "Alex"
-   age:       String                = "27"
-   ageEither: Either[AppError, Int] = Right(27)
-   ```
-2. ```scala
-   name:      String                = "Alex"
-   age:       String                = "27"
-   ageEither: Either[AppError, Int] = Right(27)
-   anAge:     Int                   = 27
-   ```
-3. ```scala
-   name:       String                   = "Alex"
-   age:        String                   = "27"
-   ageEither:  Either[AppError, Int]    = Right(27)
-   anAge:      Int                      = 27
-   nameEither: Either[AppError, String] = Right("Alex")
-   ```
-4. ```scala
-   name:       String                   = "Alex"
-   age:        String                   = "27"
-   ageEither:  Either[AppError, Int]    = Right(27)
-   anAge:      Int                      = 27
-   nameEither: Either[AppError, String] = Right("Alex")
-   aName:      String                   = "Alex"
-   ```
-5. ```scala
-   name:                       String                   = "Alex"
-   age:                        String                   = "27"
-   ageEither:                  Either[AppError, Int]    = Right(27)
-   anAge:                      Int                      = 27
-   nameEither:                 Either[AppError, String] = Right("Alex")
-   aName:                      String                   = "Alex"
-   /*result(nameEither.map)*/: Person                   = Person(name="Alex", age=27)
-   ```
-6. ```scala
-   name:          String                   = "Alex"
-   age:           String                   = "27"
-   ageEither:     Either[AppError, Int]    = Right(27)
-   ageNameEither: Either[AppError, Person] = Right(Person(name="Alex", age=27))
-   ```
+**Step 0**
+
+```scala
+name: String = "Alex"
+age:  String = "27"
+```
+
+**Step 1**
+
+```scala
+name:      String                = "Alex"
+age:       String                = "27"
+ageEither: Either[AppError, Int] = Right(27)
+```
+
+**Step 2**
+
+```scala
+name:      String                = "Alex"
+age:       String                = "27"
+ageEither: Either[AppError, Int] = Right(27)
+anAge:     Int                   = 27
+```
+
+**Step 3**
+
+```scala
+name:       String                   = "Alex"
+age:        String                   = "27"
+ageEither:  Either[AppError, Int]    = Right(27)
+anAge:      Int                      = 27
+nameEither: Either[AppError, String] = Right("Alex")
+```
+
+**Step 4**
+
+```scala
+name:       String                   = "Alex"
+age:        String                   = "27"
+ageEither:  Either[AppError, Int]    = Right(27)
+anAge:      Int                      = 27
+nameEither: Either[AppError, String] = Right("Alex")
+aName:      String                   = "Alex"
+```
+
+**Step 5**
+
+```scala
+name:                       String                   = "Alex"
+age:                        String                   = "27"
+ageEither:                  Either[AppError, Int]    = Right(27)
+anAge:                      Int                      = 27
+nameEither:                 Either[AppError, String] = Right("Alex")
+aName:                      String                   = "Alex"
+/*result(nameEither.map)*/: Person                   = Person(name="Alex", age=27)
+```
+
+**Step 6**
+
+```scala
+name:          String                   = "Alex"
+age:           String                   = "27"
+ageEither:     Either[AppError, Int]    = Right(27)
+ageNameEither: Either[AppError, Person] = Right(Person(name="Alex", age=27))
+```
 </details>
 
 <details>
 <summary><b>Unhappy Path 1: a valid name and <u>invalid</u> age</b></summary>
 
-0. ```scala
-   name: String = "Alex"
-   age:  String = "1000"
-   ```
-1. ```scala
-   name:      String                = "Alex"
-   age:       String                = "1000"
-   ageEither: Either[AppError, Int] = Left(InvalidAgeRange(1000))
-   ```
-2. Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
-3. Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
-4. Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
-5. Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
-6. ```scala
-   name:          String                   = "Alex"
-   age:           String                   = "27"
-   ageEither:     Either[AppError, Int]    = Left(InvalidAgeRange(1000))
-   ageNameEither: Either[AppError, Person] = Left(InvalidAgeRange(1000))
-   ```
+
+**Step 0**
+
+```scala
+name: String = "Alex"
+age:  String = "1000"
+```
+
+**Step 1**
+
+```scala
+name:      String                = "Alex"
+age:       String                = "1000"
+ageEither: Either[AppError, Int] = Left(InvalidAgeRange(1000))
+```
+
+**Step 2**
+
+Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+
+**Step 3**
+
+Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+
+**Step 4**
+
+Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+
+**Step 5**
+
+Skipped as `ageEither` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+
+**Step 6**
+
+```scala
+name:          String                   = "Alex"
+age:           String                   = "27"
+ageEither:     Either[AppError, Int]    = Left(InvalidAgeRange(1000))
+ageNameEither: Either[AppError, Person] = Left(InvalidAgeRange(1000))
+```
 </details>
 
 <details>
 <summary><b>Unhappy Path 2: an <u>invalid</u> name and valid age</b></summary>
 
-0. ```scala
-   name: String = ""
-   age:  String = "27"
-   ```
-1. ```scala
-   name:      String                = ""
-   age:       String                = "27"
-   ageEither: Either[AppError, Int] = Right(27)
-   ```
-2. ```scala
-   name:      String                = ""
-   age:       String                = "27"
-   ageEither: Either[AppError, Int] = Right(27)
-   anAge:     Int                   = 27
-   ```
-3. ```scala
-   name:      String                    = ""
-   age:       String                    = "27"
-   ageEither: Either[AppError, Int]     = Right(27)
-   anAge:     Int                       = 27
-   nameEither: Either[AppError, String] = Left(EmptyName)
-   ```
-4. Skipped as `nameEither` is a `Left` wrapping an `AppError` of `EmptyName`
-5. Skipped as `nameEither` is a `Left` wrapping an `AppError` of `EmptyName`
-6. ```scala
-   name:          String                   = "Alex"
-   age:           String                   = "27"
-   ageEither:     Either[AppError, Int]    = Right(27)
-   ageNameEither: Either[AppError, Person] = Left(EmptyName)
-   ```
+**Step 0**
+
+```scala
+name: String = ""
+age:  String = "27"
+```
+
+**Step 1**
+
+```scala
+name:      String                = ""
+age:       String                = "27"
+ageEither: Either[AppError, Int] = Right(27)
+```
+
+**Step 2**
+
+```scala
+name:      String                = ""
+age:       String                = "27"
+ageEither: Either[AppError, Int] = Right(27)
+anAge:     Int                   = 27
+```
+
+**Step 3**
+
+```scala
+name:      String                    = ""
+age:       String                    = "27"
+ageEither: Either[AppError, Int]     = Right(27)
+anAge:     Int                       = 27
+nameEither: Either[AppError, String] = Left(EmptyName)
+```
+
+**Step 4**
+
+Skipped as `nameEither` is a `Left` wrapping an `AppError` of `EmptyName`
+
+**Step 5**
+
+Skipped as `nameEither` is a `Left` wrapping an `AppError` of `EmptyName`
+
+**Step 6**
+
+```scala
+name:          String                   = "Alex"
+age:           String                   = "27"
+ageEither:     Either[AppError, Int]    = Right(27)
+ageNameEither: Either[AppError, Person] = Left(EmptyName)
+```
 </details>
 
 
@@ -1612,77 +1675,110 @@ Below hand executes each step for the happy and sad paths.
 <details>
 <summary><b>Happy Path: a valid name and age</b></summary>
 
-0. ```scala
-   name: String = "Alex"
-   age:  String = "27"
-   ```
-1. ```scala
-   name:               String                = "Alex"
-   age:                String                = "27"
-   /*result(getAge)*/: Either[AppError, Int] = Right(27)
-   anAge:              Int                   = 27
-   ```
-2. ```scala
-   name:                String                   = "Alex"
-   age:                 String                   = "27"
-   anAge:               Int                      = 27
-   /*result(getName)*/: Either[AppError, String] = Right("Alex")
-   aName:               String                   = "Alex"
-   ```
-3. ```scala
-   name:              String                   = "Alex"
-   age:               String                   = "27"
-   anAge:             Int                      = 27
-   aName:             String                   = "Alex"
-   /*result(yield)*/: Either[AppError, String] = Right(Person(name="Alex", age=27))
-   ```
+**Step 0**
+
+```scala
+name: String = "Alex"
+age:  String = "27"
+```
+
+**Step 1**
+
+```scala
+name:               String                = "Alex"
+age:                String                = "27"
+/*result(getAge)*/: Either[AppError, Int] = Right(27)
+anAge:              Int                   = 27
+```
+
+**Step 2**
+
+```scala
+name:                String                   = "Alex"
+age:                 String                   = "27"
+anAge:               Int                      = 27
+/*result(getName)*/: Either[AppError, String] = Right("Alex")
+aName:               String                   = "Alex"
+```
+
+**Step 3**
+
+```scala
+name:              String                   = "Alex"
+age:               String                   = "27"
+anAge:             Int                      = 27
+aName:             String                   = "Alex"
+/*result(yield)*/: Either[AppError, String] = Right(Person(name="Alex", age=27))
+```
 </details>
 
 <details>
 <summary><b>Unhappy Path 1: a valid name and <u>invalid</u> age</b></summary>
 
-0. ```scala
-   name: String = "Alex"
-   age:  String = "1000"
-   ```
-1. ```scala
-   name:               String                = "Alex"
-   age:                String                = "1000"
-   /*result(getAge)*/: Either[AppError, Int] = Left(InvalidAgeRange(1000))
-   ```
-2. Skipped as the result of `getAge` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
-3. ```scala
-   name:              String                   = "Alex"
-   age:               String                   = "27"
-   /*result(yield)*/: Either[AppError, String] = Left(InvalidAgeRange(1000))
-   ```
+**Step 0**
+
+```scala
+name: String = "Alex"
+age:  String = "1000"
+```
+
+**Step 1**
+
+```scala
+name:               String                = "Alex"
+age:                String                = "1000"
+/*result(getAge)*/: Either[AppError, Int] = Left(InvalidAgeRange(1000))
+```
+
+**Step 2**
+
+Skipped as the result of `getAge` is a `Left` wrapping an `AppError` of `InvalidAgeRange(1000)`
+
+**Step 3**
+
+```scala
+name:              String                   = "Alex"
+age:               String                   = "27"
+/*result(yield)*/: Either[AppError, String] = Left(InvalidAgeRange(1000))
+```
 </details>
 
 <details>
 <summary><b>Unhappy Path 2: an <u>invalid</u> name and valid age</b></summary>
 
-0. ```scala
-   name: String = ""
-   age:  String = "27"
-   ```
-1. ```scala
-   name:               String                = "Alex"
-   age:                String                = "27"
-   /*result(getAge)*/: Either[AppError, Int] = Right(27)
-   anAge:              Int                   = 27
-   ```
-2. ```scala
-   name:                String                   = "Alex"
-   age:                 String                   = "27"
-   anAge:               Int                      = 27
-   /*result(getName)*/: Either[AppError, String] = Left(EmptyName)
-   ```
-   :warning: Note here that `aName` won't get assigned as the result of `getName` is a `Left` wrapping an `AppError` of `EmptyName`
-3. ```scala
-   name:              String                   = "Alex"
-   age:               String                   = "27"
-   /*result(yield)*/: Either[AppError, String] = Left(EmptyName)
-   ```
+**Step 0**
+
+```scala
+name: String = ""
+age:  String = "27"
+```
+
+**Step 1**
+
+```scala
+name:               String                = "Alex"
+age:                String                = "27"
+/*result(getAge)*/: Either[AppError, Int] = Right(27)
+anAge:              Int                   = 27
+```
+
+**Step 2**
+
+```scala
+name:                String                   = "Alex"
+age:                 String                   = "27"
+anAge:               Int                      = 27
+/*result(getName)*/: Either[AppError, String] = Left(EmptyName)
+```
+:warning: Note here that `aName` won't get assigned as the result of `getName` is a `Left` wrapping an `AppError` of `EmptyName`
+
+**Step 3**
+
+```scala
+name:              String                   = "Alex"
+age:               String                   = "27"
+/*result(yield)*/: Either[AppError, String] = Left(EmptyName)
+```
 </details>
 
 ### Pattern Matching for Error Handling
